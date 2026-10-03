@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dodge the Blocks</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #111827;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .game-container {
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      color: #38bdf8;
+    }
+
+    .info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
+    canvas {
+      background: #020617;
+      border: 3px solid #38bdf8;
+      border-radius: 10px;
+      display: block;
+    }
+
+    #gameOver {
+      display: none;
+      margin-top: 15px;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #38bdf8;
+      color: #082f49;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #7dd3fc;
+    }
+
+    .controls {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="game-container">
+    <h1>🚀 Dodge the Blocks</h1>
+
+    <div class="info">
+      <span>Score: <b id="score">0</b></span>
+      <span>Lives: <b id="lives">3</b></span>
+    </div>
+
+    <canvas id="gameCanvas" width="500" height="600"></canvas>
+
+    <div id="gameOver">
+      <h2>💥 Game Over!</h2>
+      <p>Your score: <b id="finalScore">0</b></p>
+      <button onclick="restartGame()">Play Again</button>
+    </div>
+
+    <div class="controls">
+      Use ← → or A/D to move
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const scoreElement = document.getElementById("score");
+    const livesElement = document.getElementById("lives");
+    const gameOverElement = document.getElementById("gameOver");
+    const finalScoreElement = document.getElementById("finalScore");
+
+    // Player
+    const player = {
+      x: canvas.width / 2 - 25,
+      y: canvas.height - 60,
+      width: 50,
+      height: 30,
+      speed: 7,
+      color: "#22d3ee"
+    };
+
+    let blocks = [];
+    let keys = {};
+    let score = 0;
+    let lives = 3;
+    let gameRunning = true;
+    let spawnTimer = 0;
+    let difficulty = 2;
+
+    // Keyboard controls
+    document.addEventListener("keydown", (event) => {
+      keys[event.key.toLowerCase()] = true;
+    });
+
+    document.addEventListener("keyup", (event) => {
+      keys[event.key.toLowerCase()] = false;
+    });
+
+    function createBlock() {
+      const size = Math.random() * 30 + 20;
+
+      blocks.push({
+        x: Math.random() * (canvas.width - size),
+        y: -size,
+        width: size,
+        height: size,
+        speed: difficulty + Math.random() * 2,
+        color: "#ef4444"
+      });
+    }
+
+    function movePlayer() {
+      if (keys["arrowleft"] || keys["a"]) {
+        player.x -= player.speed;
+      }
+
+      if (keys["arrowright"] || keys["d"]) {
+        player.x += player.speed;
+      }
+
+      // Keep player inside canvas
+      if (player.x < 0) {
+        player.x = 0;
+      }
+
+      if (player.x + player.width > canvas.width) {
+        player.x = canvas.width - player.width;
+      }
+    }
+
+    function collision(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function updateBlocks() {
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        const block = blocks[i];
+
+        block.y += block.speed;
+
+        // Collision
+        if (collision(player, block)) {
+          blocks.splice(i, 1);
+          lives--;
+          livesElement.textContent = lives;
+
+          if (lives <= 0) {
+            endGame();
+          }
+
+          continue;
+        }
+
+        // Block passed player
+        if (block.y > canvas.height) {
+          blocks.splice(i, 1);
+          score++;
+          scoreElement.textContent = score;
+
+          // Increase difficulty
+          if (score % 10 === 0) {
+            difficulty += 0.5;
+          }
+        }
+      }
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(
+        player.x,
+        player.y,
+        player.width,
+        player.height
+      );
+
+      // Window
+      ctx.fillStyle = "#e0f2fe";
+      ctx.fillRect(
+        player.x + 15,
+        player.y + 5,
+        20,
+        10
+      );
+    }
+
+    function drawBlocks() {
+      blocks.forEach(block => {
+        ctx.fillStyle = block.color;
+        ctx.fillRect(
+          block.x,
+          block.y,
+          block.width,
+          block.height
+        );
+      });
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Stars
+      ctx.fillStyle = "#334155";
+
+      for (let i = 0; i < 40; i++) {
+        const x = (i * 83) % canvas.width;
+        const y = (i * 137) % canvas.height;
+
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+
+      drawBackground();
+
+      movePlayer();
+
+      spawnTimer++;
+
+      if (spawnTimer > 35) {
+        createBlock();
+        spawnTimer = 0;
+      }
+
+      updateBlocks();
+
+      drawPlayer();
+      drawBlocks();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      gameRunning = false;
+
+      finalScoreElement.textContent = score;
+      gameOverElement.style.display = "block";
+    }
+
+    function restartGame() {
+      blocks = [];
+      score = 0;
+      lives = 3;
+      difficulty = 2;
+      spawnTimer = 0;
+
+      scoreElement.textContent = score;
+      livesElement.textContent = lives;
+
+      player.x = canvas.width / 2 - 25;
+
+      gameOverElement.style.display = "none";
+
+      gameRunning = true;
+      gameLoop();
+    }
+
+    // Start game
+    gameLoop();
+  </script>
+
+</body>
+</html>
